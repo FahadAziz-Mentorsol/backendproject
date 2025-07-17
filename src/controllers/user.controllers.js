@@ -8,7 +8,6 @@ const generateAccessAndRefreshTokens = async (userId) => {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
     const refreshToken = user.generateRefreshToken();
-
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
     return { accessToken, refreshToken };
@@ -120,7 +119,6 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [{ username: username }, { email: email }],
   });
-  console.log(user, "user");
 
   if (!user) {
     throw new ApiError(404, "User does not exist");
