@@ -4,7 +4,6 @@ import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
-import { use } from "react";
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
@@ -236,7 +235,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword, confirmPassword } = req.body;
-  const user = User.findById(req.user._id);
+  const user = User.findById(req.user?._id);
   // if (confirmPassword === newPassword) {
   // }
 
@@ -280,7 +279,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
-  const avatarLocalPath = req.files?.path;
+  const avatarLocalPath = req.file?.path;
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is missing");
   }
@@ -305,8 +304,8 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     .json(new ApiResponse(200, user, "Avatar image update successfully"));
 });
 
-const updateCoverImage = asyncHandler(async (req, res) => {
-  const coverImageLocalPath = req.files?.path;
+const updateUserCoverImage = asyncHandler(async (req, res) => {
+  const coverImageLocalPath = req.file?.path;
   if (!avatarLocalPath) {
     throw new ApiError(400, "Cover image file is missing");
   }
@@ -340,5 +339,5 @@ export {
   updateAccountDetails,
   getCurrentUser,
   updateUserAvatar,
-  updateCoverImage,
+  updateUserCoverImage,
 };
