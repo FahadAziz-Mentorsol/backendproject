@@ -1,23 +1,20 @@
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-/**
- * Hash password before saving to DB
- */
+//   Hash password before saving to DB
+
 export const hashPassword = async (password) => {
   return await bcrypt.hash(password, 10);
 };
 
-/**
- * Compare plain password with hashed password
- */
+// Compare plain password with hashed password
+
 export const isPasswordCorrect = async (inputPassword, hashedPassword) => {
   return await bcrypt.compare(inputPassword, hashedPassword);
 };
 
-/**
- * Generate access token
- */
+// Generate access token
+
 export const generateAccessToken = (user) => {
   return jwt.sign(
     {
@@ -33,9 +30,8 @@ export const generateAccessToken = (user) => {
   );
 };
 
-/**
- * Generate refresh token
- */
+// Generate refresh token
+
 export const generateRefreshToken = (userId) => {
   return jwt.sign(
     {

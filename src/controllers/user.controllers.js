@@ -8,6 +8,8 @@ import mongoose from "mongoose";
 import {
   generateAccessToken,
   generateRefreshToken,
+  isPasswordCorrect,
+  hashPassword,
 } from "../utils/auth.js/user.js";
 const generateAccessAndRefreshTokens = async (userId) => {
   try {
@@ -20,7 +22,7 @@ const generateAccessAndRefreshTokens = async (userId) => {
   } catch (error) {
     throw new ApiError(
       500,
-      "something went wrong generating access and refresh token"
+      "Something went wrong generating access and refresh token"
     );
   }
 };
@@ -52,7 +54,7 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(409, "User with email or username already exists");
   }
 
-  const avatarLocalPath = req.files?.avatar[0]?.path;
+  const avatarLocalPath = req.files?.avatar?.[0]?.path;
   //const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
   let coverImageLocalPath;
@@ -75,12 +77,14 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is required");
   }
 
+  const hashedPassword = await hashPassword(password);
+
   const user = await User.create({
     fullName: fullName,
     avatar: avatar.url,
     coverImage: coverImage?.url || "",
     email,
-    password,
+    password: hashedPassword,
     username: username.toLowerCase(),
   });
 
@@ -108,7 +112,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { email, username, password } = req.body;
 
   if (!username && !email) {
-    throw new ApiError(400, "username or email is required");
+    throw new ApiError(400, "Username or Email is required");
   }
 
   // Here is an alternative of above code based on logic discussed in video:
@@ -117,14 +121,14 @@ const loginUser = asyncHandler(async (req, res) => {
   // }
 
   const user = await User.findOne({
-    $or: [{ username: username }, { email: email }],
+    $or: [{ username }, { email }],
   });
 
   if (!user) {
     throw new ApiError(404, "User does not exist");
   }
 
-  const isPasswordValid = await user.isPasswordCorrect(password);
+  const isPasswordValid = await isPasswordCorrect(password, user.password);
 
   if (!isPasswordValid) {
     throw new ApiError(401, "Invalid user credentials");
@@ -161,11 +165,11 @@ const loginUser = asyncHandler(async (req, res) => {
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
-  User.findByIdAndUpdate(
+  await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: "",
+      $unset: {
+        refreshToken: 1, // remove refreshToken field
       },
     },
     {
@@ -234,12 +238,13 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 const changeCurrentPassword = asyncHandler(async (req, res) => {
   const { oldPassword, newPassword, confirmPassword } = req.body;
-  const user = User.findById(req.user?._id);
-  // if (confirmPassword === newPassword) {
-  // throw new ApiError(400, "Confirm password does not match");
+  const user = await User.findById(req.user?._id);
+
+  // if (newPassword !== confirmPassword) {
+  //   throw new ApiError(400, "Confirm password does not match");
   // }
 
-  const isPasswordCorrect = await isPasswordCorrect(oldPassword);
+  const isPasswordCorrect = await isPasswordCorrect(oldPassword, user.password);
   if (!isPasswordCorrect) {
     throw new ApiError(400, "Invalid Old Password");
   }
@@ -253,7 +258,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully");
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -262,7 +267,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   if (!fullName || !email) {
     throw new ApiError(400, "All field are required");
   }
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
@@ -273,9 +278,9 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     { new: true }
   ).select("-password");
 
-  res
+  return res
     .status(200)
-    .json(200, ApiResponse(200, user, "Account Details updated successfully"));
+    .json(new ApiResponse(200, user, "Account details updated successfully"));
 });
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
@@ -333,7 +338,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
 const getUserChannelProfile = asyncHandler(async (req, res) => {
   const { username } = req.params;
 
-  if (!username.trim) {
+  if (!username.trim()) {
     throw new ApiError(400, "Username is missing");
   }
 
